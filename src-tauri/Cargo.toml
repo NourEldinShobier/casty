@@ -1,0 +1,36 @@
+[package]
+name = "casty"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "casty_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time", "macros"] }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+openh264 = "0.9"
+yuv = "0.8"
+fast_image_resize = "6"
+axum = { version = "0.8", features = ["ws"] }
+hostname = "0.4"
+local-ip-address = "0.6"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[target.'cfg(target_os = "macos")'.dependencies]
+scap = "0.1.0-beta.1"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-capture = "2"
