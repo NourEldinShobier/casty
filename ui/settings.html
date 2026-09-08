@@ -5,8 +5,8 @@
 <title>Casty Settings</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .swin{position:absolute;inset:0;border-radius:var(--window-radius);background:hsl(var(--background));color:hsl(var(--foreground));border:1px solid hsl(var(--border));display:grid;grid-template-rows:auto auto 1fr;overflow:hidden}
-  body.max .swin{border-radius:0;border:0}
+  .swin{position:absolute;inset:var(--pad);border-radius:var(--window-radius);background:hsl(var(--background));color:hsl(var(--foreground));border:1px solid hsl(var(--border));display:grid;grid-template-rows:auto auto 1fr;overflow:hidden;box-shadow:var(--window-shadow)}
+  body.max .swin{inset:0;border-radius:0;border:0;box-shadow:none}
   .stb{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:12px 12px 4px}
   .stb .left{grid-column:1;display:flex;align-items:center;gap:10px}
   .stb .title{grid-column:2;pointer-events:none}
@@ -45,7 +45,7 @@
 </style>
 </head>
 <body data-state="idle">
-<div class="shell" style="background:transparent;border:0">
+<div class="shell" style="background:transparent;border:0;box-shadow:none;inset:0;overflow:visible">
 <div class="swin">
   <div class="stb" data-tauri-drag-region>
     <div class="left"><div class="lights"><button class="close" data-act="close"></button><button class="min" data-act="min"></button><button class="max" data-act="max"></button></div></div>

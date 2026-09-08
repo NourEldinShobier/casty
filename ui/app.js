@@ -72,14 +72,15 @@ async function openSettings() {
   const { WebviewWindow } = T.webviewWindow;
   const existing = await WebviewWindow.getByLabel('settings');
   if (existing) { await existing.show(); await existing.setFocus(); return; }
-  const w = new WebviewWindow('settings', { url: 'settings.html', title: 'Casty Settings', width: 760, height: 540, minWidth: 560, minHeight: 400, decorations: false, transparent: true, shadow: false, center: true, alwaysOnTop: true });
+  const w = new WebviewWindow('settings', { url: 'settings.html', title: 'Casty Settings', width: 760 + 32, height: 540 + 32, minWidth: 560 + 32, minHeight: 400 + 32, decorations: false, transparent: true, shadow: false, center: true, alwaysOnTop: true });
   w.once('tauri://error', (e) => { log('settings window error ' + JSON.stringify(e.payload)); fail('Could not open settings: ' + JSON.stringify(e.payload)); });
   w.once('tauri://created', () => log('settings window created'));
   // note: never listen to tauri://close-requested here; a JS listener suppresses the default close
 }
 
 // ---------- window size per state ----------
-const SIZES = { idle: [640, 400], viewing: [640, 400], hosting: [400, 310] };
+const PAD = 32; // transparent margin for the window shadow, both sides
+const SIZES = { idle: [640 + PAD, 400 + PAD], viewing: [640 + PAD, 400 + PAD], hosting: [400 + PAD, 310 + PAD] };
 let lastPlayerSize = store.get('size', SIZES.viewing);
 async function setState(s) {
   const prev = body.dataset.state;
