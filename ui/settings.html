@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Casty Settings</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .swin{position:absolute;inset:0;border-radius:var(--window-radius);background:hsl(var(--background));color:hsl(var(--foreground));border:1px solid hsl(var(--border));display:grid;grid-template-rows:auto auto 1fr;overflow:hidden}
+  body.max .swin{border-radius:0;border:0}
+  .stb{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:12px 12px 4px}
+  .stb .left{grid-column:1;display:flex;align-items:center;gap:10px}
+  .stb .title{grid-column:2;pointer-events:none}
+  .stb .wcontrols{grid-column:3;justify-self:end}
+  .snav{display:flex;justify-content:center;padding:8px 12px 12px}
+  .snav .tabs{height:40px;padding:4px;border-radius:999px;gap:2px}
+  .snav .tabs button{height:32px;padding:0 14px;border-radius:999px;gap:7px}
+  .snav .tabs .ic{width:15px;height:15px}
+  .spane{padding:6px 28px 24px;overflow:auto}
+  .spane section{display:none;animation:rise .2s ease-out}.spane section.on{display:block}
+  @keyframes rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .spane h2{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .spane .lead{margin:3px 0 16px;color:hsl(var(--muted-foreground));font-size:13px}
+  .grp{border:1px solid hsl(var(--border));border-radius:16px;overflow:hidden;margin-bottom:14px;background:hsl(var(--card))}
+  .gh{padding:9px 16px;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:hsl(var(--muted-foreground));background:hsl(var(--muted)/.6);border-bottom:1px solid hsl(var(--border))}
+  .srow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px}
+  .srow+.srow{border-top:1px solid hsl(var(--border))}
+  .srow .l b{display:block;font-weight:500;font-size:13px}.srow .l span{font-size:12px;color:hsl(var(--muted-foreground))}
+  .sw{width:40px;height:22px;border-radius:999px;background:hsl(var(--input));position:relative;flex:none;transition:background .2s}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:left .2s cubic-bezier(.2,.8,.2,1)}
+  .sw[aria-checked="true"]{background:hsl(var(--primary))}.sw[aria-checked="true"]::after{left:20px}
+  select{height:34px;border:1px solid hsl(var(--input));background:hsl(var(--background));border-radius:999px;padding:0 32px 0 14px;font-size:13px;color:hsl(var(--foreground));min-width:150px;appearance:none;-webkit-appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,hsl(var(--muted-foreground)) 50%),linear-gradient(135deg,hsl(var(--muted-foreground)) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+  select:hover{background-color:hsl(var(--accent))}
+  .sl{display:flex;align-items:center;gap:12px}
+  .sl input[type=range]{width:150px;margin:0;height:5px;background:linear-gradient(90deg,hsl(var(--primary)) var(--v),hsl(var(--secondary)) var(--v))}
+  .sl input[type=range]::-webkit-slider-thumb{opacity:1;width:14px;height:14px;background:hsl(var(--background));border:2px solid hsl(var(--primary))}
+  .sl .mono{font-size:12px;color:hsl(var(--muted-foreground));width:64px;text-align:right}
+  .kbd{display:inline-flex;gap:4px}.kbd span{border:1px solid hsl(var(--border));border-bottom-width:2px;border-radius:8px;padding:2px 8px;font-size:11px;background:hsl(var(--muted))}
+  .note{font-size:12px;color:hsl(var(--muted-foreground));padding:10px 16px;background:hsl(var(--muted)/.6);border-top:1px solid hsl(var(--border));display:flex;gap:8px;align-items:flex-start}
+  .note .ic{width:14px;height:14px;margin-top:1px;flex:none}
+  .about{font-size:13px;line-height:1.7}.about .mono{color:hsl(var(--muted-foreground))}
+  .about .row{display:flex;gap:12px;align-items:center}
+  .about .logo{width:44px;height:44px;border-radius:14px;background:hsl(var(--primary));color:hsl(var(--primary-foreground));display:grid;place-items:center;flex:none}
+  .about .logo .ic{width:22px;height:22px}
+</style>
+</head>
+<body data-state="idle">
+<div class="shell" style="background:transparent;border:0">
+<div class="swin">
+  <div class="stb" data-tauri-drag-region>
+    <div class="left"><div class="lights"><button class="close" data-act="close"></button><button class="min" data-act="min"></button><button class="max" data-act="max"></button></div></div>
+    <span class="pill lbl title"><span id="tic"></span>Settings</span>
+    <div class="wcontrols pill"><button class="rb" data-act="min" id="wmin"></button><button class="rb" data-act="max" id="wmax"></button><button class="rb close" data-act="close" id="wclose"></button></div>
+  </div>
+  <nav class="snav"><div class="tabs" id="nav">
+    <button data-s="general" aria-pressed="true"></button>
+    <button data-s="video" aria-pressed="false"></button>
+    <button data-s="audio" aria-pressed="false"></button>
+    <button data-s="network" aria-pressed="false"></button>
+    <button data-s="shortcuts" aria-pressed="false"></button>
+    <button data-s="about" aria-pressed="false"></button>
+  </div></nav>
+  <div class="spane">
+      <section data-s="general" class="on">
+        <h2>General</h2><p class="lead">How the player window behaves.</p>
+        <div class="grp"><div class="gh">Appearance</div>
+          <div class="srow"><div class="l"><b>Theme</b><span>Follow the system, or pick one.</span></div><div class="tabs" id="theme"><button data-v="system" aria-pressed="false">System</button><button data-v="light" aria-pressed="false">Light</button><button data-v="dark" aria-pressed="false">Dark</button></div></div>
+        </div>
+        <div class="grp"><div class="gh">Player window</div>
+          <div class="srow"><div class="l"><b>Keep on top</b><span>Float above other windows while watching.</span></div><button class="sw" role="switch" data-k="keep_on_top"></button></div>
+          <div class="srow"><div class="l"><b>Hide controls after</b><span>Controls reappear when the mouse moves.</span></div><select data-k="hide_controls_ms"><option value="1000">1 second</option><option value="2000">2 seconds</option><option value="4000">4 seconds</option><option value="600000">Never</option></select></div>
+        </div>
+        <div class="grp"><div class="gh">Being watched</div>
+          <div class="srow"><div class="l"><b>Allow viewers</b><span>Other devices can find and watch this screen.</span></div><button class="sw" role="switch" data-k="allow_viewers"></button></div>
+        </div>
+      </section>
+      <section data-s="video">
+        <h2>Video</h2><p class="lead">What gets captured and how it is sent.</p>
+        <div class="grp"><div class="gh">Capture</div>
+          <div class="srow"><div class="l"><b>Display</b><span>The screen other devices see. Viewers can switch too.</span></div><select data-k="display" id="displays"></select></div>
+          <div class="srow"><div class="l"><b>Show cursor</b><span>Draw the pointer into the stream.</span></div><button class="sw" role="switch" data-k="show_cursor"></button></div>
+          <div class="srow"><div class="l"><b>Frame rate cap</b><span>Lower values save CPU on laptops.</span></div><select data-k="fps_cap"><option value="30">30 fps</option><option value="60">60 fps</option><option value="120">120 fps</option></select></div>
+        </div>
+        <div class="grp"><div class="gh">Encoding</div>
+          <div class="srow"><div class="l"><b>Bitrate ceiling</b><span>Per viewer. A viewer's quality pick stays under it.</span></div><div class="sl"><input type="range" min="1000" max="40000" step="500" data-k="max_kbps"><span class="mono" id="kbps"></span></div></div>
+          <div class="srow"><div class="l"><b>Keyframe interval</b><span>Shorter recovers faster after a dropped frame.</span></div><select data-k="keyframe_secs"><option value="2">2 s</option><option value="5">5 s</option><option value="10">10 s</option></select></div>
+          <div class="note"><span class="nic"></span><span>Encoder: OpenH264 on the CPU, multi-threaded. Hardware encoding is not in this version.</span></div>
+        </div>
+      </section>
+      <section data-s="audio">
+        <h2>Audio</h2><p class="lead">System sound and where it plays.</p>
+        <div class="grp"><div class="gh">Sound</div>
+          <div class="srow"><div class="l"><b>Send system sound</b><span>Viewers can choose to hear this machine.</span></div><button class="sw" role="switch" data-k="audio"></button></div>
+          <div class="note"><span class="nic"></span><span>On a viewer, the sound button cycles PC, Here, Both. "Here" mutes this machine and plays there. The volume slider adjusts Casty's own level on the viewer, or this machine's volume when sound stays here.</span></div>
+        </div>
+      </section>
+      <section data-s="network">
+        <h2>Network</h2><p class="lead">How devices find each other.</p>
+        <div class="grp"><div class="gh">This machine</div>
+          <div class="srow"><div class="l"><b>Name</b><span>Shown to other devices.</span></div><span class="mono" id="hname"></span></div>
+          <div class="srow"><div class="l"><b>Addresses</b><span>Type one of these on a device that cannot find you.</span></div><span class="mono" id="ips" style="text-align:right"></span></div>
+          <div class="srow"><div class="l"><b>Ports</b><span>Allow these in your firewall for private networks.</span></div><span class="mono">45455 TCP · 45454 UDP</span></div>
+          <div class="note"><span class="nic"></span><span>With Mullvad, turn on Local network sharing on every device. Discovery falls back to scanning the subnet when broadcast is blocked.</span></div>
+        </div>
+      </section>
+      <section data-s="shortcuts">
+        <h2>Shortcuts</h2><p class="lead">While the player is focused.</p>
+        <div class="grp"><div class="gh">Player</div>
+          <div class="srow"><div class="l"><b>Expand or restore</b></div><span class="kbd"><span>Ctrl</span><span>Shift</span><span>F</span></span></div>
+          <div class="srow"><div class="l"><b>Pause or resume</b></div><span class="kbd"><span>Space</span></span></div>
+          <div class="srow"><div class="l"><b>Mute or unmute</b></div><span class="kbd"><span>M</span></span></div>
+          <div class="srow"><div class="l"><b>Back, or leave expanded</b></div><span class="kbd"><span>Esc</span></span></div>
+          <div class="srow"><div class="l"><b>Expand</b><span>Also works with the mouse.</span></div><span>Double-click the video</span></div>
+        </div>
+      </section>
+      <section data-s="about">
+        <h2>About</h2><p class="lead">Casty streams a screen to devices on the same network. Nothing leaves your Wi-Fi.</p>
+        <div class="grp"><div class="srow"><div class="about row"><div class="logo" id="logo"></div><div><b>Casty</b> <span class="mono" id="ver2">0.2.0</span><br><span class="mono">Capture: Windows Graphics Capture / ScreenCaptureKit · Encode: OpenH264 · Decode: WebCodecs</span></div></div></div></div>
+      </section>
+  </div>
+</div>
+</div>
+<script src="icons.js"></script>
+<script>
+const T = window.__TAURI__, { invoke } = T.core, win = T.window.getCurrentWindow(), $ = (s) => document.querySelector(s);
+const NAV = { general: 'settings', video: 'monitor', audio: 'audio-lines', network: 'wifi', shortcuts: 'keyboard', about: 'info' };
+document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(NAV[b.dataset.s]) + '<span>' + b.dataset.s[0].toUpperCase() + b.dataset.s.slice(1) + '</span>'; b.onclick = () => { document.querySelectorAll('#nav button').forEach((x) => x.setAttribute('aria-pressed', x === b)); document.querySelectorAll('.spane section').forEach((s) => s.classList.toggle('on', s.dataset.s === b.dataset.s)); }; });
+$('#tic').innerHTML = icon('settings'); $('#logo').innerHTML = icon('cast');
+$('#wmin').innerHTML = icon('minus'); $('#wmax').innerHTML = icon('square'); $('#wclose').innerHTML = icon('x');
+document.querySelectorAll('.nic').forEach((e) => (e.innerHTML = icon('info')));
+document.querySelectorAll('[data-act]').forEach((b) => (b.onclick = async () => { const a = b.dataset.act; if (a === 'close') win.close(); else if (a === 'min') win.minimize(); else { await win.toggleMaximize(); const m = await win.isMaximized(); document.body.classList.toggle('max', m); $('#wmax').innerHTML = icon(m ? 'copy' : 'square'); } }));
+let s = {};
+function applyTheme() { document.documentElement.dataset.theme = s.theme === 'system' ? '' : s.theme; document.querySelectorAll('#theme button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === s.theme)); }
+document.querySelectorAll('#theme button').forEach((b) => (b.onclick = () => save('theme', b.dataset.v)));
+function render() {
+  applyTheme();
+  document.querySelectorAll('[data-k]').forEach((el) => {
+    const k = el.dataset.k, v = s[k];
+    if (el.classList.contains('sw')) el.setAttribute('aria-checked', !!v);
+    else if (el.tagName === 'SELECT') el.value = String(v);
+    else if (el.type === 'range') { el.value = v; el.style.setProperty('--v', ((v - el.min) / (el.max - el.min) * 100) + '%'); $('#kbps').textContent = (v / 1000).toFixed(1) + ' Mb/s'; }
+  });
+}
+async function save(k, v) { s[k] = v; await invoke('set_settings', { settings: s }); render(); }
+T.event.listen('settings', (e) => { s = e.payload; render(); });
+document.querySelectorAll('[data-k]').forEach((el) => {
+  const k = el.dataset.k;
+  if (el.classList.contains('sw')) el.onclick = () => save(k, !s[k]);
+  else if (el.tagName === 'SELECT') el.onchange = () => save(k, +el.value);
+  else if (el.type === 'range') { el.oninput = () => { el.style.setProperty('--v', ((el.value - el.min) / (el.max - el.min) * 100) + '%'); $('#kbps').textContent = (el.value / 1000).toFixed(1) + ' Mb/s'; }; el.onchange = () => save(k, +el.value); }
+});
+(async () => {
+  s = await invoke('get_settings');
+  const h = await invoke('host_info');
+  document.body.dataset.os = h.os;
+  $('#displays').innerHTML = h.displays.map((d, i) => `<option value="${d.index}">${d.name || 'Display ' + (i + 1)}${d.width ? ` · ${d.width}×${d.height}` : ''}</option>`).join('') || '<option value="0">Display 1</option>';
+  $('#hname').textContent = h.name; $('#ips').innerHTML = h.ips.join('<br>') || 'no network';
+  render();
+})();
+</script>
+</body>
+</html>

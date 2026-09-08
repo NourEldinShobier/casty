@@ -1,0 +1,27 @@
+{
+  "name": "casty",
+  "version": "1.0.0",
+  "description": "Cast a Windows or macOS screen to an Android phone over the local network. No cloud, no account, no relay.",
+  "scripts": {
+    "icons": "node scripts/icons.mjs",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NourEldinShobier/casty.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/NourEldinShobier/casty/issues"
+  },
+  "homepage": "https://github.com/NourEldinShobier/casty#readme",
+  "devDependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "lucide-static": "^1.42.0"
+  },
+  "private": true
+}

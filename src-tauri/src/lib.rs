@@ -1,8 +1,14 @@
 mod discover;
 #[cfg(not(target_os = "android"))]
+mod audio;
+#[cfg(not(target_os = "android"))]
 mod capture;
 #[cfg(not(target_os = "android"))]
 mod host;
+#[cfg(not(target_os = "android"))]
+mod settings;
+#[cfg(not(target_os = "android"))]
+mod sysaudio;
 
 use serde::Serialize;
 
@@ -12,37 +18,80 @@ fn role() -> &'static str {
 }
 
 #[tauri::command]
+fn log(msg: String) {
+    eprintln!("ui: {msg}");
+}
+
+#[tauri::command]
 async fn discover() -> Vec<discover::Device> {
-    tokio::task::spawn_blocking(|| discover::probe(std::time::Duration::from_millis(1200)))
-        .await
-        .unwrap_or_default()
-}
-
-#[derive(Serialize)]
-struct HostInfo {
-    name: String,
-    port: u16,
-    ips: Vec<String>,
-    viewers: usize,
-    permission: bool,
+    tokio::task::spawn_blocking(|| discover::probe(std::time::Duration::from_millis(1200))).await.unwrap_or_default()
 }
 
 #[cfg(not(target_os = "android"))]
-#[tauri::command]
-fn host_info(s: tauri::State<host::Shared>) -> HostInfo {
-    HostInfo {
-        name: host::name(),
-        port: host::PORT,
-        ips: host::ips(),
-        viewers: s.viewers.load(std::sync::atomic::Ordering::Relaxed),
-        permission: capture::has_permission(),
+mod desktop {
+    use super::*;
+    use tauri::{Emitter, State};
+
+    #[derive(Serialize)]
+    pub struct HostInfo {
+        name: String,
+        port: u16,
+        ips: Vec<String>,
+        viewers: Vec<host::Viewer>,
+        permission: bool,
+        route: u8,
+        volume: Option<u8>,
+        os: &'static str,
+        displays: Vec<capture::DisplayInfo>,
     }
-}
 
-#[cfg(not(target_os = "android"))]
-#[tauri::command]
-fn request_permission() -> bool {
-    capture::request_permission()
+    #[tauri::command]
+    pub fn host_info(s: State<host::Shared>) -> HostInfo {
+        HostInfo {
+            name: host::name(),
+            port: host::PORT,
+            ips: host::ips(),
+            viewers: s.viewers.lock().unwrap().clone(),
+            permission: capture::has_permission(),
+            route: s.route.load(std::sync::atomic::Ordering::Relaxed),
+            volume: sysaudio::volume(),
+            os: std::env::consts::OS,
+            displays: capture::displays(),
+        }
+    }
+
+    #[tauri::command]
+    pub fn request_permission() -> bool {
+        capture::request_permission()
+    }
+
+    #[tauri::command]
+    pub fn set_route(s: State<host::Shared>, route: u8) {
+        s.set_route(route)
+    }
+
+    #[tauri::command]
+    pub fn set_volume(pct: u8) -> Result<(), String> {
+        sysaudio::set_volume(pct)
+    }
+
+    #[tauri::command]
+    pub fn get_settings(s: State<host::Shared>) -> settings::Settings {
+        s.settings.read().unwrap().clone()
+    }
+
+    #[tauri::command]
+    pub fn set_settings(app: tauri::AppHandle, s: State<host::Shared>, settings: settings::Settings) -> Result<(), String> {
+        settings::save(&settings)?;
+        *s.settings.write().unwrap() = settings.clone();
+        let _ = app.emit("settings", settings);
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub fn hostname() -> String {
+        host::name()
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -50,14 +99,33 @@ pub fn run() {
     let builder = tauri::Builder::default();
     #[cfg(not(target_os = "android"))]
     let builder = {
-        let shared = host::Shared::default();
+        use desktop::*;
+        let shared = host::Shared { settings: std::sync::Arc::new(std::sync::RwLock::new(settings::load())), ..Default::default() };
         tauri::async_runtime::spawn(host::serve(shared.clone()));
         std::thread::spawn(|| discover::respond_forever(host::name(), host::PORT));
-        builder
-            .manage(shared)
-            .invoke_handler(tauri::generate_handler![role, discover, host_info, request_permission])
+        builder.manage(shared).invoke_handler(tauri::generate_handler![
+            role,
+            log,
+            discover,
+            host_info,
+            request_permission,
+            set_route,
+            set_volume,
+            get_settings,
+            set_settings,
+            hostname
+        ])
     };
     #[cfg(target_os = "android")]
-    let builder = builder.invoke_handler(tauri::generate_handler![role, discover]);
-    builder.run(tauri::generate_context!()).expect("casty failed to start");
+    let builder = builder.invoke_handler(tauri::generate_handler![role, log, discover]);
+    builder
+        .on_window_event(|w, e| {
+            // the player is the app; closing it closes settings too
+            if w.label() == "main" && matches!(e, tauri::WindowEvent::Destroyed) {
+                use tauri::Manager;
+                w.app_handle().exit(0);
+            }
+        })
+        .run(tauri::generate_context!())
+        .expect("casty failed to start");
 }
