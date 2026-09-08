@@ -15,8 +15,9 @@
   --border:240 5.9% 90%;--input:240 5.9% 90%;--ring:240 10% 3.9%;
   --radius:0.5rem;
   --window-radius:18px;
-  --pad:16px;
-  --window-shadow:0 12px 40px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.10);
+  --pad:28px;
+  --window-shadow:0 8px 20px rgba(0,0,0,.20), 0 1px 4px rgba(0,0,0,.10);
+  --close-tint:0 84% 60%;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --background:240 10% 3.9%;--foreground:0 0% 98%;
@@ -28,7 +29,8 @@
   --accent:240 3.7% 15.9%;--accent-foreground:0 0% 98%;
   --destructive:0 62.8% 30.6%;--destructive-foreground:0 0% 98%;
   --border:240 3.7% 15.9%;--input:240 3.7% 15.9%;--ring:240 4.9% 83.9%;
-  --window-shadow:0 14px 44px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35);
+  --window-shadow:0 8px 20px rgba(0,0,0,.55), 0 1px 4px rgba(0,0,0,.35);
+  --close-tint:0 90% 65%;
 }}
 :root[data-theme="dark"]{
   --background:240 10% 3.9%;--foreground:0 0% 98%;
@@ -40,7 +42,8 @@
   --accent:240 3.7% 15.9%;--accent-foreground:0 0% 98%;
   --destructive:0 62.8% 30.6%;--destructive-foreground:0 0% 98%;
   --border:240 3.7% 15.9%;--input:240 3.7% 15.9%;--ring:240 4.9% 83.9%;
-  --window-shadow:0 14px 44px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35);
+  --window-shadow:0 8px 20px rgba(0,0,0,.55), 0 1px 4px rgba(0,0,0,.35);
+  --close-tint:0 90% 65%;
 }
 
 *{box-sizing:border-box;user-select:none;-webkit-user-select:none}
@@ -104,7 +107,7 @@ body.max .edge{display:none}
 .rb:hover{background:rgba(255,255,255,.16);opacity:1}
 .rb:active{transform:scale(.94);background:rgba(255,255,255,.24)}
 .rb[aria-pressed="true"]{background:#fff;color:#111}
-.rb.close:hover{background:hsl(var(--destructive));color:#fff}
+.rb.close:hover{background:hsl(var(--close-tint)/.28);color:#fff}
 .rb.wide{width:auto;padding:0 12px;font-size:12px;font-weight:600;letter-spacing:.01em}
 .rb .ic{width:18px;height:18px}
 .tbar{position:absolute;left:0;right:0;top:0;height:64px;display:grid;grid-template-columns:1fr auto 1fr;align-items:start;padding:12px;z-index:20;
@@ -114,8 +117,8 @@ body[data-state="idle"] .pill{color:hsl(var(--foreground));background:hsl(var(--
 body[data-state="idle"] .rb{color:hsl(var(--foreground))}
 body[data-state="idle"] .rb:hover{background:hsl(var(--foreground)/.08)}
 body[data-state="idle"] .rb:active{background:hsl(var(--foreground)/.14)}
-body[data-state="idle"] .rb.close:hover{background:hsl(var(--destructive)/.15);color:hsl(var(--destructive))}
-body[data-state="idle"] .rb.close:active{background:hsl(var(--destructive)/.25)}
+body[data-state="idle"] .rb.close:hover{background:hsl(var(--close-tint)/.16);color:hsl(var(--close-tint))}
+body[data-state="idle"] .rb.close:active{background:hsl(var(--close-tint)/.26)}
 body[data-state="idle"] .rb[aria-pressed="true"]{background:hsl(var(--primary));color:hsl(var(--primary-foreground))}
 .tbar .name{grid-column:2;justify-self:center;display:flex;align-items:center;gap:6px;pointer-events:none}
 .tbar .name .pill:empty{display:none}
@@ -197,7 +200,7 @@ body[data-state="hosting"] .capsule{display:flex}
 body[data-state="hosting"] .chrome,body[data-state="hosting"] #video{display:none}
 .capsule .top{display:flex;align-items:center;gap:10px;padding:0 8px 0 12px;height:52px;border-bottom:1px solid hsl(var(--border))}
 .capsule .pill{color:hsl(var(--foreground));background:hsl(var(--muted));border-color:hsl(var(--border));box-shadow:none;backdrop-filter:none;height:36px}
-.capsule .rb{color:hsl(var(--foreground));width:28px;height:28px}.capsule .rb:hover{background:hsl(var(--foreground)/.08)}.capsule .rb:active{background:hsl(var(--foreground)/.14)}.capsule .rb.close:hover{background:hsl(var(--destructive)/.15);color:hsl(var(--destructive))}.capsule .rb .ic{width:16px;height:16px}
+.capsule .rb{color:hsl(var(--foreground));width:28px;height:28px}.capsule .rb:hover{background:hsl(var(--foreground)/.08)}.capsule .rb:active{background:hsl(var(--foreground)/.14)}.capsule .rb.close:hover{background:hsl(var(--close-tint)/.16);color:hsl(var(--close-tint))}.capsule .rb .ic{width:16px;height:16px}
 .capsule .top b,.capsule .top>span,.capsule .top>i{pointer-events:none}
 .capsule .top b{font-weight:600;font-size:13px}.capsule .top span{font-size:12px;color:hsl(var(--muted-foreground))}
 .capsule .top .wcontrols{margin-left:auto}
