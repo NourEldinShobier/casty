@@ -42,7 +42,7 @@ async function toggleMax() {
 document.querySelectorAll('[data-act]').forEach((b) => (b.onclick = (e) => {
   e.stopPropagation();
   const a = b.dataset.act;
-  if (a === 'close') win.close();
+  if (a === 'close') win.destroy();
   else if (a === 'min') win.minimize();
   else if (a === 'max') toggleMax();
   else if (a === 'settings') openSettings();

@@ -128,7 +128,7 @@ document.querySelectorAll('#nav button').forEach((b) => { b.innerHTML = icon(NAV
 $('#tic').innerHTML = icon('settings'); $('#logo').innerHTML = icon('cast');
 $('#wmin').innerHTML = icon('minus'); $('#wmax').innerHTML = icon('square'); $('#wclose').innerHTML = icon('x');
 document.querySelectorAll('.nic').forEach((e) => (e.innerHTML = icon('info')));
-document.querySelectorAll('[data-act]').forEach((b) => (b.onclick = async () => { const a = b.dataset.act; if (a === 'close') win.close(); else if (a === 'min') win.minimize(); else { await win.toggleMaximize(); const m = await win.isMaximized(); document.body.classList.toggle('max', m); $('#wmax').innerHTML = icon(m ? 'copy' : 'square'); } }));
+document.querySelectorAll('[data-act]').forEach((b) => (b.onclick = async () => { const a = b.dataset.act; if (a === 'close') win.destroy(); else if (a === 'min') win.minimize(); else { await win.toggleMaximize(); const m = await win.isMaximized(); document.body.classList.toggle('max', m); $('#wmax').innerHTML = icon(m ? 'copy' : 'square'); } }));
 let s = {};
 function applyTheme() { document.documentElement.dataset.theme = s.theme === 'system' ? '' : s.theme; document.querySelectorAll('#theme button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === s.theme)); }
 document.querySelectorAll('#theme button').forEach((b) => (b.onclick = () => save('theme', b.dataset.v)));
