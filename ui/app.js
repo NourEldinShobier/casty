@@ -75,9 +75,7 @@ async function openSettings() {
   const w = new WebviewWindow('settings', { url: 'settings.html', title: 'Casty Settings', width: 760, height: 540, minWidth: 560, minHeight: 400, decorations: false, transparent: true, shadow: false, center: true, alwaysOnTop: true });
   w.once('tauri://error', (e) => { log('settings window error ' + JSON.stringify(e.payload)); fail('Could not open settings: ' + JSON.stringify(e.payload)); });
   w.once('tauri://created', () => log('settings window created'));
-  w.once('tauri://destroyed', () => log('settings window destroyed'));
-  w.listen('tauri://close-requested', () => log('settings close requested'));
-  setTimeout(async () => { try { log('settings visible=' + await w.isVisible() + ' size=' + JSON.stringify(await w.innerSize())); } catch (e) { log('settings probe failed ' + e); } }, 1500);
+  // note: never listen to tauri://close-requested here; a JS listener suppresses the default close
 }
 
 // ---------- window size per state ----------

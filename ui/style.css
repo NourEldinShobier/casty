@@ -47,6 +47,13 @@ input{font:inherit}
 .mono{font-variant-numeric:tabular-nums}
 :focus-visible{outline:2px solid hsl(var(--ring));outline-offset:2px}
 .ic{width:16px;height:16px;flex:none}
+/* thin themed scrollbar everywhere */
+*{scrollbar-width:thin;scrollbar-color:hsl(var(--muted-foreground)/.35) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:hsl(var(--muted-foreground)/.35);border-radius:999px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:hsl(var(--muted-foreground)/.6);border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-corner{background:transparent}
 
 /* ---- shadcn-style primitives ---- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 16px;border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap;transition:background-color .15s,color .15s}
