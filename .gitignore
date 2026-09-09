@@ -6,3 +6,4 @@ src-tauri/gen/android/buildSrc/build/
 src-tauri/gen/android/app/.cxx/
 node_modules/
 node_modules/
+src-tauri/Assets.car

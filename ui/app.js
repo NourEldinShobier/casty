@@ -22,6 +22,8 @@ let os = 'windows', myName = '';
 // ---------- icons ----------
 const setIcon = (sel, name) => document.querySelectorAll(sel).forEach((e) => (e.innerHTML = icon(name)));
 setIcon('#settings1', 'settings'); $('#settings1').onclick = openSettings;
+setIcon('#permic', 'monitor');
+$('#grant').onclick = async () => { await invoke('request_permission'); pollHost(); };
 setIcon('#settings2,#settings3', 'settings');
 setIcon('#wc-min,#wc-min2', 'minus'); setIcon('#wc-max', 'square'); setIcon('#wc-close,#wc-close2', 'x');
 setIcon('#pause', 'pause'); setIcon('#hvolic', 'volume-2'); setIcon('#mute', 'volume-2');
@@ -98,6 +100,7 @@ async function pollHost() {
   try { hostInfo = await invoke('host_info'); } catch { return; }
   os = hostInfo.os; body.dataset.os = os; myName = hostInfo.name;
   $('#me').textContent = `${hostInfo.name} · ${hostInfo.ips[0] || 'no network'}`;
+  $('#perm').hidden = hostInfo.permission !== false;
   const hosting = hostInfo.viewers.length > 0;
   if (hosting && body.dataset.state !== 'viewing') await setState('hosting');
   else if (!hosting && body.dataset.state === 'hosting') await setState('idle');

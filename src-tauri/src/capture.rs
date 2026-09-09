@@ -105,7 +105,13 @@ pub fn displays() -> Vec<DisplayInfo> {
     }
     #[cfg(target_os = "macos")]
     {
-        return scap::get_all_targets()
+        // ScreenCaptureKit refuses to enumerate without Screen Recording access and scap unwraps that;
+        // never touch it before permission is granted, and never let it take the app down
+        if !scap::has_permission() {
+            return vec![DisplayInfo { index: 0, name: "Display 1".into(), width: 0, height: 0 }];
+        }
+        let targets = std::panic::catch_unwind(scap::get_all_targets).unwrap_or_default();
+        return targets
             .into_iter()
             .filter_map(|t| match t {
                 scap::Target::Display(d) => Some(d),
@@ -184,7 +190,11 @@ mod mac {
     use scap::frame::{AudioFormat, Frame, FrameType, VideoFrame};
 
     pub fn start(o: &Options, tx: SyncSender<RawFrame>, atx: SyncSender<AudioChunk>, stop: Arc<AtomicBool>) -> Result<(), String> {
-        let target = scap::get_all_targets()
+        if !scap::has_permission() {
+            return Err("Screen Recording access has not been granted".into());
+        }
+        let target = std::panic::catch_unwind(scap::get_all_targets)
+            .unwrap_or_default()
             .into_iter()
             .filter(|t| matches!(t, scap::Target::Display(_)))
             .nth(o.display);

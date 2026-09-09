@@ -192,6 +192,10 @@ body[data-state="idle"] #livedot,body[data-state="idle"] #qlabel{display:none}
 .picker .foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:11px;color:hsl(var(--muted-foreground))}
 .picker .foot .btn{height:32px;width:32px;padding:0}
 .picker .foot .ic{width:14px;height:14px}
+.perm{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:hsl(var(--muted));font-size:12px}
+.perm .ic{width:16px;height:16px;flex:none;color:hsl(var(--muted-foreground))}
+.perm span:nth-child(2){flex:1}
+.perm .btn{flex:none}
 .err{display:none;margin-top:8px;font-size:12px;color:hsl(var(--destructive))}.err.on{display:block}
 
 /* ---- host capsule ---- */
