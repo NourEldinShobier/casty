@@ -1,57 +1,120 @@
-# Casty
+<p align="center">
+  <img src="docs/icon.png" width="128" alt="Casty icon">
+</p>
 
-Cast a Windows or macOS screen to an Android phone over the local network. No cloud, no account, no relay.
+<h1 align="center">Casty</h1>
 
-- **Host** (Windows / macOS): captures the primary display, encodes H.264 on the CPU, serves it over HTTP on port 45455 and answers UDP discovery on port 45454.
-- **Viewer**: the desktop app is a frameless, always-on-top floating player (Windows / macOS); the same UI ships as an Android APK. Finds hosts with one tap, decodes with WebCodecs on the hardware decoder.
-- **Sound**: system audio (WASAPI loopback / ScreenCaptureKit) streams as PCM. One button cycles PC / Here / Both; "Here" mutes the host. The volume slider adjusts Casty's own level on the viewer, or the host's volume when sound stays there.
-- **Quality**: Low 640p/30, Medium 720p/30, High 1080p/60, Native full-res/60, plus display pick. The host scales and encodes per viewer at the requested size.
-- **Remote control**: the viewer can drive the host's mouse and keyboard. Off on the host until switched on, since watching is passive and control is not. Input is queued in the viewer and flushed once per frame in a single request; consecutive pointer moves collapse into the newest one, so a fast gesture costs one line while clicks and keys keep their order.
-- **Settings window**: theme, keep on top, control auto-hide, display, cursor, fps cap, bitrate ceiling, keyframe interval, allow viewers, allow remote control, sound.
+<p align="center">
+  Watch, hear and control your Windows PC or Mac from another computer on the same network.<br>
+  A floating player with system sound and remote control. No cloud, no account, no relay.
+</p>
 
-Works with Mullvad's *Local network sharing* enabled. Discovery uses UDP broadcast, which that option explicitly allows.
+<p align="center">
+  <a href="https://github.com/NourEldinShobier/casty/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/NourEldinShobier/casty?label=release"></a>
+  <a href="https://github.com/NourEldinShobier/casty/actions/workflows/build.yml"><img alt="Build" src="https://github.com/NourEldinShobier/casty/actions/workflows/build.yml/badge.svg"></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-555">
+</p>
 
-## Build
+<p align="center">
+  <img src="docs/player.png" width="880" alt="Casty showing another computer's screen, with the floating toolbar">
+</p>
 
-Prereqs: Rust, Node 22, `npm i -g @tauri-apps/cli`, NASM (for OpenH264 assembly; without it encoding is ~3x slower).
+Casty started as a way to keep an eye on a long build or training run without walking back to the desk. Run it on the machine you want to watch and on the one in front of you. The second finds the first on its own and shows its screen in a small window that stays on top of everything else. The picture and sound go straight from one machine to the other over your local network.
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/picker-dark.png">
+        <img src="docs/picker-light.png" alt="Device picker listing two computers on the network">
+      </picture>
+      <br><sub>Computers running Casty appear on their own</sub>
+    </td>
+    <td align="center" width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/settings-dark.png">
+        <img src="docs/settings-light.png" alt="Settings window">
+      </picture>
+      <br><sub>Settings, in light and dark</sub>
+    </td>
+  </tr>
+</table>
+
+## Features
+
+- **Finds devices on its own.** A broadcast goes out on every network the machine is on. When a VPN swallows it, Casty scans the local subnet instead. You can always type an address.
+- **Floating player.** Frameless and rounded, stays on top, resizes from any edge, and expands to fill the screen. The controls fade while you watch and come back when the mouse moves.
+- **Quality you pick per viewer.** Four presets from 640p at 30 fps to native resolution at 60 fps, plus a display picker. The watched machine encodes each viewer at the size it asked for.
+- **Sound where you want it.** Play the watched machine's sound there, on your side, or both. Casty's volume slider changes only Casty.
+- **Remote control.** Drive the other machine's mouse and keyboard. It is off until you switch it on at the machine being watched, and Ctrl+Alt+Shift+C always hands the keyboard back.
+- **Know who is watching.** The watched machine shows a small card with each viewer, where the sound plays, and a Stop button.
+- **Light and dark.** Follows the system, or pick one in Settings.
+- **VPN friendly.** Works alongside VPNs that allow local network sharing, such as Mullvad.
+
+## Download
+
+Get the latest build from the [releases page](https://github.com/NourEldinShobier/casty/releases/latest).
+
+| Platform | File |
+| --- | --- |
+| Windows 10 and 11, x64 | `Casty_<version>_x64-setup.exe`, or the `.msi` |
+| macOS 13 or later, Apple Silicon and Intel | `Casty_<version>_universal.dmg` |
+
+Both computers need Casty and the same local network. Casty uses TCP port 45455 for the stream and UDP port 45454 to find devices.
+
+### First run
+
+**Windows.** The installer is not signed yet, so SmartScreen may warn you: choose More info, then Run anyway. The `setup.exe` also adds firewall rules for private networks. With the `.msi`, allow Casty when Windows asks.
+
+**macOS.** The app is not notarized yet. Drag Casty to Applications, then right-click it and choose Open, or allow it under System Settings, Privacy & Security. If macOS reports the app as damaged, run:
 
 ```bash
-# Windows installer (run from the repo root). NASM must be findable; on Windows set it explicitly:
-NASM='C:\Users\<you>\AppData\Local\bin\NASM\nasm.exe' npx tauri build
-
-# Android APK (needs Android SDK + NDK + JDK 21)
-NDK_HOME=<sdk>/ndk/<version> npx tauri android build --apk --target aarch64
-
-# macOS, Apple Silicon (run on the Mac)
-brew install nasm
-rustup target add aarch64-apple-darwin
-npx tauri build --target aarch64-apple-darwin
+xattr -dr com.apple.quarantine /Applications/Casty.app
 ```
 
-Set `CASTY_DEBUG=1` to print per-second pipeline stats (fps, convert ms, encode ms, bitrate) on the host, plus `ui:` lines from the webview.
+To be watched, a Mac needs Screen Recording access. To be controlled, it also needs Accessibility access. Casty asks for both and links to the right pane.
 
-After editing anything in `ui/`, `touch src-tauri/src/lib.rs` before `cargo build`, or the old assets stay embedded. `npm run icons` regenerates `ui/icons.js` from lucide-static.
+**On a VPN.** Turn on local network sharing on both computers. Each device has its own switch.
 
-## How it streams
+## How it works
 
-`capture.rs` (windows-capture on Windows, scap on macOS) → `fast_image_resize` (SIMD scale) → `yuv` (SIMD BGRA→I420) → OpenH264 (size-limited slices, multi-threaded) → chunked HTTP response of `[len u32][packet]` → `VideoDecoder` / Web Audio in the viewer. Control messages go back as `POST /ctl?sid=`.
+Casty is a [Tauri 2](https://tauri.app) app with a Rust core and a plain HTML and JavaScript interface.
 
-Input travels back on that same control channel, one command per line: `m <x> <y>` with coordinates
-normalised 0..1 across the display, `d`/`u` for buttons, `s` for scroll, `kd`/`ku` carrying a DOM
-`KeyboardEvent.code`, and `rel` to release everything. Physical `code` values are used rather than
-`key`, so a different keyboard layout on the viewer still lands on the right physical key, and
-normalised coordinates mean the viewer never needs to know the host's resolution or DPI.
+1. The screen is captured with Windows Graphics Capture or ScreenCaptureKit.
+2. Frames are scaled and converted to YUV with SIMD, then encoded to H.264 with OpenH264, multi-threaded.
+3. The stream is a single chunked HTTP response of length-prefixed packets. Control messages, including mouse and keyboard input, go back as small POST requests.
+4. The viewer decodes with WebCodecs on the hardware decoder and plays sound through Web Audio. System sound comes from WASAPI loopback or ScreenCaptureKit.
 
-Why HTTP and not WebSocket: WebView2 refuses `ws://` from the app origin (`http://tauri.localhost` counts as a secure context). Plain HTTP streaming works in every webview and needs no extra plugin.
+HTTP streaming is used instead of WebSocket because WebView2 refuses `ws://` from the app's own origin, and plain HTTP works in every webview without a plugin. If the network falls behind, frames are dropped and the encoder is asked for a fresh keyframe, so the picture catches up instead of lagging.
 
-Backpressure: if the socket falls behind, frames are dropped and the encoder is asked for an IDR. The viewer does the same when its decode queue grows.
+Input is sent as one command per line: `m x y` with coordinates from 0 to 1 across the display, `d` and `u` for buttons, `s` for scroll, `kd` and `ku` with the key's physical `KeyboardEvent.code`. Physical codes mean a different keyboard layout on the viewer still presses the right key, and normalised coordinates mean the viewer never needs the other screen's resolution or scaling.
+
+## Build from source
+
+You need Rust, Node 22, the Tauri CLI (`npm i -g @tauri-apps/cli@2`) and [NASM](https://www.nasm.us). NASM enables OpenH264's assembly path; without it, encoding is about three times slower.
+
+```bash
+# Windows
+tauri build --bundles nsis,msi
+```
+
+```bash
+# macOS, Apple Silicon and Intel in one app
+brew install nasm
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+tauri build --target universal-apple-darwin --bundles app,dmg
+```
+
+On macOS 26, an app that ships only an `.icns` icon is drawn on a grey plate. The Liquid Glass icon in `src-tauri/icons/AppIcon.icon` has to be compiled into `Assets.car` with Xcode 26's `actool` first. The [build workflow](.github/workflows/build.yml) shows the exact command.
+
+Set `CASTY_DEBUG=1` to print per-second stats on the watched machine: frame rate, conversion and encode time, and bitrate. After editing anything in `ui/`, touch `src-tauri/src/lib.rs` before `cargo build`, or the old files stay embedded. `npm run icons` regenerates `ui/icons.js` from Lucide.
+
+Pushing a tag such as `v0.2.4` builds both platforms and publishes a release with the installers attached.
 
 ## Known limits
 
-- Software encode. Hardware encode (NVENC / Media Foundation / VideoToolbox) is the next step if CPU use matters.
-- Windows Graphics Capture only delivers frames when the screen changes, so a static desktop streams at ~0 fps by design. WASAPI loopback likewise sends nothing while the PC is silent.
-- Remote control drives the primary display only. A session watching any other display cannot take control.
-- Ctrl+Alt+Del cannot be injected: it is a Secure Attention Sequence that no ordinary process can synthesise. Ctrl+Shift+Esc reaches Task Manager instead.
-- macOS needs Accessibility access before it can be controlled, separately from Screen Recording. Settings shows a button that opens the right pane.
-- Ctrl+Alt+Shift+C is kept local while controlling, so there is always a way out of a captured keyboard.
+- Encoding runs on the CPU. Hardware encoding (NVENC, Media Foundation, VideoToolbox) is the next step.
+- Windows only sends frames when the screen changes, so a still desktop streams at close to 0 fps. Sound likewise sends nothing while the machine is silent.
+- Remote control drives the primary display only.
+- Ctrl+Alt+Del cannot be sent, because Windows allows no ordinary program to produce it. Ctrl+Shift+Esc opens Task Manager instead.
 - No clipboard sync yet.
