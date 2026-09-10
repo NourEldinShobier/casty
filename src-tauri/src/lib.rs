@@ -65,6 +65,12 @@ mod desktop {
         capture::request_permission()
     }
 
+    /// macOS hands screen-recording access to a newly launched process, not a running one.
+    #[tauri::command]
+    pub fn relaunch(app: tauri::AppHandle) {
+        app.restart()
+    }
+
     #[tauri::command]
     pub fn set_route(s: State<host::Shared>, route: u8) {
         s.set_route(route)
@@ -109,6 +115,7 @@ pub fn run() {
             discover,
             host_info,
             request_permission,
+            relaunch,
             set_route,
             set_volume,
             get_settings,

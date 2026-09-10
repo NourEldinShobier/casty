@@ -23,7 +23,18 @@ let os = 'windows', myName = '';
 const setIcon = (sel, name) => document.querySelectorAll(sel).forEach((e) => (e.innerHTML = icon(name)));
 setIcon('#settings1', 'settings'); $('#settings1').onclick = openSettings;
 setIcon('#permic', 'monitor');
-$('#grant').onclick = async () => { await invoke('request_permission'); pollHost(); };
+$('#grant').onclick = async () => {
+  // macOS only reports screen-recording access to a process that started after it was granted,
+  // so if we still read it as missing, the honest next step is a relaunch.
+  if ($('#grant').dataset.mode === 'restart') return invoke('relaunch');
+  await invoke('request_permission');
+  await pollHost();
+  if (!$('#perm').hidden) {
+    $('#grant').textContent = 'Restart Casty';
+    $('#grant').dataset.mode = 'restart';
+    $('#permtext').textContent = 'Allow Casty under System Settings, Privacy & Security, Screen Recording, then restart it.';
+  }
+};
 setIcon('#settings2,#settings3', 'settings');
 setIcon('#wc-min,#wc-min2', 'minus'); setIcon('#wc-max', 'square'); setIcon('#wc-close,#wc-close2', 'x');
 setIcon('#pause', 'pause'); setIcon('#hvolic', 'volume-2'); setIcon('#mute', 'volume-2');
@@ -49,8 +60,40 @@ document.querySelectorAll('[data-act]').forEach((b) => (b.onclick = (e) => {
   else if (a === 'max') toggleMax();
   else if (a === 'settings') openSettings();
 }));
-document.querySelectorAll('.edge').forEach((e) => (e.onmousedown = (ev) => { if (ev.button === 0) win.startResizeDragging(e.dataset.d); }));
-$('#grip').onmousedown = (ev) => { if (ev.button === 0) win.startResizeDragging('SouthEast'); };
+// tao's drag_resize_window is NotSupported on macOS and the runtime discards that error,
+// so startResizeDragging silently does nothing there; resize from JS instead.
+const IS_MAC = /Mac/i.test(navigator.platform || navigator.userAgent);
+const MIN_W = 376, MIN_H = 270; // must match minWidth/minHeight in tauri.conf.json
+async function resizeFromJs(dir, ev) {
+  const f = await win.scaleFactor();
+  const p = await win.outerPosition(), s = await win.outerSize();
+  const x0 = p.x / f, y0 = p.y / f, w0 = s.width / f, h0 = s.height / f;
+  const sx = ev.screenX, sy = ev.screenY;
+  const north = dir.includes('North'), south = dir.includes('South');
+  const west = dir.includes('West'), east = dir.includes('East');
+  let pending = null, frame = 0;
+  const apply = () => {
+    frame = 0;
+    let { dx, dy } = pending, x = x0, y = y0, w = w0, h = h0;
+    if (east) w = Math.max(MIN_W, w0 + dx);
+    if (south) h = Math.max(MIN_H, h0 + dy);
+    if (west) { w = Math.max(MIN_W, w0 - dx); x = x0 + w0 - w; }
+    if (north) { h = Math.max(MIN_H, h0 - dy); y = y0 + h0 - h; }
+    win.setSize(new T.dpi.LogicalSize(Math.round(w), Math.round(h)));
+    if (west || north) win.setPosition(new T.dpi.LogicalPosition(Math.round(x), Math.round(y)));
+  };
+  const move = (m) => { pending = { dx: m.screenX - sx, dy: m.screenY - sy }; if (!frame) frame = requestAnimationFrame(apply); };
+  const up = () => { cancelAnimationFrame(frame); removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+function startResize(dir, ev) {
+  if (ev.button !== 0) return;
+  ev.preventDefault();
+  if (IS_MAC || store.get('jsresize', false)) resizeFromJs(dir, ev);
+  else win.startResizeDragging(dir);
+}
+document.querySelectorAll('.edge').forEach((el) => (el.onpointerdown = (ev) => startResize(el.dataset.d, ev)));
+$('#grip').onpointerdown = (ev) => startResize('SouthEast', ev);
 $('#video').ondblclick = toggleMax;
 $('#expand').onclick = toggleMax;
 $('#pin').onclick = async () => {
@@ -83,14 +126,13 @@ async function openSettings() {
 // ---------- window size per state ----------
 const PAD = 56; // transparent margin for the window shadow, both sides
 const SIZES = { idle: [640 + PAD, 400 + PAD], viewing: [640 + PAD, 400 + PAD], hosting: [400 + PAD, 310 + PAD] };
-let lastPlayerSize = store.get('size', SIZES.viewing);
 async function setState(s) {
   const prev = body.dataset.state;
   if (prev === s) return;
-  if (prev !== 'hosting') { try { const sz = await win.innerSize(); const f = await win.scaleFactor(); lastPlayerSize = [Math.round(sz.width / f), Math.round(sz.height / f)]; store.set('size', lastPlayerSize); } catch {} }
   body.dataset.state = s;
   if (maximized) await toggleMax();
-  const [w, h] = s === 'hosting' ? SIZES.hosting : lastPlayerSize;
+  // each state returns the window to its default size; a manual resize is not carried across states
+  const [w, h] = SIZES[s] || SIZES.idle;
   try { await win.setSize(new T.dpi.LogicalSize(w, h)); } catch {}
 }
 

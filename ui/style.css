@@ -90,10 +90,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 .shell{position:absolute;inset:var(--pad);border-radius:var(--window-radius);overflow:hidden;background:hsl(var(--background));border:1px solid hsl(var(--border));box-shadow:var(--window-shadow)}
 body.max .shell{inset:0;border-radius:0;border:0;box-shadow:none}
 .edge{position:absolute;z-index:50}
-.edge.n{top:0;left:8px;right:8px;height:5px;cursor:ns-resize}.edge.s{bottom:0;left:8px;right:8px;height:5px;cursor:ns-resize}
-.edge.e{right:0;top:8px;bottom:8px;width:5px;cursor:ew-resize}.edge.w{left:0;top:8px;bottom:8px;width:5px;cursor:ew-resize}
-.edge.ne{top:0;right:0;width:12px;height:12px;cursor:nesw-resize}.edge.nw{top:0;left:0;width:12px;height:12px;cursor:nwse-resize}
-.edge.se{bottom:0;right:0;width:12px;height:12px;cursor:nwse-resize}.edge.sw{bottom:0;left:0;width:12px;height:12px;cursor:nesw-resize}
+/* .edge sits inside .shell, so inset 0 is the visible border. 8px bands are easier to grab than 5px. */
+.edge.n{top:0;left:14px;right:14px;height:8px;cursor:ns-resize}.edge.s{bottom:0;left:14px;right:14px;height:8px;cursor:ns-resize}
+.edge.e{right:0;top:14px;bottom:14px;width:8px;cursor:ew-resize}.edge.w{left:0;top:14px;bottom:14px;width:8px;cursor:ew-resize}
+.edge.ne{top:0;right:0;width:14px;height:14px;cursor:nesw-resize}.edge.nw{top:0;left:0;width:14px;height:14px;cursor:nwse-resize}
+.edge.se{bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize}.edge.sw{bottom:0;left:0;width:14px;height:14px;cursor:nesw-resize}
 body.max .edge{display:none}
 .grip{display:none}
 
@@ -193,6 +194,7 @@ body[data-state="idle"] #livedot,body[data-state="idle"] #qlabel{display:none}
 .picker .foot .btn{height:32px;width:32px;padding:0}
 .picker .foot .ic{width:14px;height:14px}
 .perm{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:hsl(var(--muted));font-size:12px}
+.perm[hidden]{display:none} /* an author display rule outranks the UA [hidden] rule, so restate it */
 .perm .ic{width:16px;height:16px;flex:none;color:hsl(var(--muted-foreground))}
 .perm span:nth-child(2){flex:1}
 .perm .btn{flex:none}
