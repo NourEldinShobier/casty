@@ -63,10 +63,11 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: { path: dist, merge-multiple: true }
-      - run: ls -la dist
+      # the Windows artifact keeps its nsis/ and msi/ folders, so collect files, not dist/*
+      - run: find dist -type f
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          gh release create "$GITHUB_REF_NAME" dist/*
+          gh release create "$GITHUB_REF_NAME" $(find dist -type f)
           --repo "$GITHUB_REPOSITORY" --title "Casty ${GITHUB_REF_NAME#v}" --generate-notes
