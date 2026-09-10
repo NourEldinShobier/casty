@@ -95,14 +95,14 @@ You need Rust, Node 22, the Tauri CLI (`npm i -g @tauri-apps/cli@2`) and [NASM](
 
 ```bash
 # Windows
-tauri build --bundles nsis,msi
+tauri build --bundles nsis msi
 ```
 
 ```bash
 # macOS, Apple Silicon and Intel in one app
 brew install nasm
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
-tauri build --target universal-apple-darwin --bundles app,dmg
+tauri build --target universal-apple-darwin --bundles app dmg
 ```
 
 On macOS 26, an app that ships only an `.icns` icon is drawn on a grey plate. The Liquid Glass icon in `src-tauri/icons/AppIcon.icon` has to be compiled into `Assets.car` with Xcode 26's `actool` first. The [build workflow](.github/workflows/build.yml) shows the exact command.

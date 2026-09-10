@@ -22,7 +22,8 @@ jobs:
       - uses: ilammy/setup-nasm@v1
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: npm i -g @tauri-apps/cli@2
-      - run: tauri build --bundles nsis,msi
+      # space-separated: PowerShell would turn "nsis,msi" into one bogus value
+      - run: tauri build --bundles nsis msi
       - uses: actions/upload-artifact@v4
         with:
           name: casty-windows-x64
@@ -49,7 +50,7 @@ jobs:
           --output-partial-info-plist "$RUNNER_TEMP/icon.plist" --app-icon AppIcon --include-all-app-icons
           --enable-on-demand-resources NO --development-region en --target-device mac
           --minimum-deployment-target 13.0 --platform macosx
-      - run: tauri build --target universal-apple-darwin --bundles app,dmg --config '{"bundle":{"resources":["Assets.car"]}}'
+      - run: tauri build --target universal-apple-darwin --bundles app dmg --config '{"bundle":{"resources":["Assets.car"]}}'
       - uses: actions/upload-artifact@v4
         with:
           name: casty-macos-universal
