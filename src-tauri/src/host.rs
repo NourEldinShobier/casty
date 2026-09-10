@@ -40,6 +40,8 @@ pub struct Viewer {
 #[derive(Clone, Default)]
 pub struct Shared {
     pub viewers: Arc<Mutex<Vec<Viewer>>>,
+    /// Set when a listening port could not be opened, so the UI can say so instead of looking healthy.
+    pub net_error: Arc<Mutex<Option<String>>>,
     pub sessions: Arc<Mutex<HashMap<u64, Arc<Ctl>>>>,
     pub settings: Arc<RwLock<Settings>>,
     pub route: Arc<AtomicU8>,
@@ -121,12 +123,20 @@ pub async fn serve(shared: Shared) {
         )
         .route("/stream", get(stream))
         .route("/ctl", post(ctl))
-        .with_state(shared);
+        .with_state(shared.clone());
     match tokio::net::TcpListener::bind(("0.0.0.0", PORT)).await {
         Ok(l) => {
             let _ = axum::serve(l, app).await;
         }
-        Err(e) => eprintln!("casty: bind {PORT} failed: {e}"),
+        Err(e) => {
+            let msg = if e.kind() == std::io::ErrorKind::AddrInUse {
+                "Casty is already running on this machine, so this window cannot be watched.".to_string()
+            } else {
+                format!("Port {PORT} could not be opened: {e}")
+            };
+            eprintln!("casty: {msg}");
+            *shared.net_error.lock().unwrap() = Some(msg);
+        }
     }
 }
 

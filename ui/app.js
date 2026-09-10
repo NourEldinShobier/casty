@@ -23,6 +23,7 @@ let os = 'windows', myName = '';
 const setIcon = (sel, name) => document.querySelectorAll(sel).forEach((e) => (e.innerHTML = icon(name)));
 setIcon('#settings1', 'settings'); $('#settings1').onclick = openSettings;
 setIcon('#permic', 'monitor');
+setIcon('#neterric', 'info');
 $('#grant').onclick = async () => {
   // macOS only reports screen-recording access to a process that started after it was granted,
   // so if we still read it as missing, the honest next step is a relaunch.
@@ -143,6 +144,8 @@ async function pollHost() {
   os = hostInfo.os; body.dataset.os = os; myName = hostInfo.name;
   $('#me').textContent = `${hostInfo.name} · ${hostInfo.ips[0] || 'no network'}`;
   $('#perm').hidden = hostInfo.permission !== false;
+  $('#neterr').hidden = !hostInfo.net_error;
+  if (hostInfo.net_error) $('#neterrtext').textContent = hostInfo.net_error;
   const hosting = hostInfo.viewers.length > 0;
   if (hosting && body.dataset.state !== 'viewing') await setState('hosting');
   else if (!hosting && body.dataset.state === 'hosting') await setState('idle');

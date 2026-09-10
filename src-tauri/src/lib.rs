@@ -43,6 +43,7 @@ mod desktop {
         volume: Option<u8>,
         os: &'static str,
         displays: Vec<capture::DisplayInfo>,
+        net_error: Option<String>,
     }
 
     #[tauri::command]
@@ -57,6 +58,7 @@ mod desktop {
             volume: sysaudio::volume(),
             os: std::env::consts::OS,
             displays: capture::displays(),
+            net_error: s.net_error.lock().unwrap().clone(),
         }
     }
 
@@ -108,7 +110,15 @@ pub fn run() {
         use desktop::*;
         let shared = host::Shared { settings: std::sync::Arc::new(std::sync::RwLock::new(settings::load())), ..Default::default() };
         tauri::async_runtime::spawn(host::serve(shared.clone()));
-        std::thread::spawn(|| discover::respond_forever(host::name(), host::PORT));
+        {
+            let s = shared.clone();
+            std::thread::spawn(move || {
+                if let Err(e) = discover::respond_forever(host::name(), host::PORT) {
+                    eprintln!("casty: {e}");
+                    *s.net_error.lock().unwrap() = Some(e);
+                }
+            });
+        }
         builder.manage(shared).invoke_handler(tauri::generate_handler![
             role,
             log,

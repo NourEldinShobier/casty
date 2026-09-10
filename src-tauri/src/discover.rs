@@ -15,13 +15,13 @@ pub struct Device {
     pub port: u16,
 }
 
-/// Host side: answer probes forever. Runs on its own thread.
+/// Host side: answer probes forever. Runs on its own thread; only returns if the bind fails.
 #[allow(dead_code)]
-pub fn respond_forever(name: String, port: u16) {
-    let sock = match UdpSocket::bind(("0.0.0.0", PORT)) {
-        Ok(s) => s,
-        Err(e) => return eprintln!("casty: discovery bind failed: {e}"),
-    };
+pub fn respond_forever(name: String, port: u16) -> Result<(), String> {
+    let sock = UdpSocket::bind(("0.0.0.0", PORT)).map_err(|e| match e.kind() {
+        std::io::ErrorKind::AddrInUse => "Casty is already running on this machine.".to_string(),
+        _ => format!("Discovery port {PORT} could not be opened: {e}"),
+    })?;
     let mut buf = [0u8; 64];
     loop {
         let Ok((n, from)) = sock.recv_from(&mut buf) else { continue };
@@ -38,11 +38,11 @@ pub fn probe(timeout: Duration) -> Vec<Device> {
     let Ok(sock) = UdpSocket::bind(("0.0.0.0", 0)) else { return found };
     let _ = sock.set_broadcast(true);
     let _ = sock.set_read_timeout(Some(Duration::from_millis(200)));
+    // A global broadcast leaves only the default-route interface, which a VPN tunnel usually owns.
+    // Directed broadcasts reach every other network this machine is really on.
     let mut targets = vec![SocketAddr::from((Ipv4Addr::BROADCAST, PORT))];
-    // ponytail: assume /24 for the directed broadcast; the global broadcast covers the rest
-    if let Some(ip) = local_ipv4() {
-        let o = ip.octets();
-        targets.push(SocketAddr::from((Ipv4Addr::new(o[0], o[1], o[2], 255), PORT)));
+    for n in subnets() {
+        targets.push(SocketAddr::from((Ipv4Addr::new(n[0], n[1], n[2], 255), PORT)));
     }
     for t in &targets {
         let _ = sock.send_to(PROBE, t);
@@ -59,21 +59,30 @@ pub fn probe(timeout: Duration) -> Vec<Device> {
         }
     }
     if found.is_empty() {
-        found = scan_subnet();
+        found = scan_subnets();
     }
     found
 }
 
-/// ponytail: /24 only; 254 parallel TCP connects finish in well under a second on Wi-Fi.
-fn scan_subnet() -> Vec<Device> {
+/// Try each network this machine is on, stopping at the first that answers.
+fn scan_subnets() -> Vec<Device> {
+    for net in subnets().into_iter().take(3) {
+        let found = scan_one(net);
+        if !found.is_empty() {
+            return found;
+        }
+    }
+    Vec::new()
+}
+
+/// ponytail: /24 only, one subnet at a time, so at most 254 threads are alive at once.
+fn scan_one(net: [u8; 3]) -> Vec<Device> {
     use std::io::{Read, Write};
     use std::net::TcpStream;
-    let Some(ip) = local_ipv4() else { return Vec::new() };
-    let o = ip.octets();
     let handles: Vec<_> = (1..=254u8)
         .map(|last| {
             std::thread::spawn(move || {
-                let addr = SocketAddr::from((Ipv4Addr::new(o[0], o[1], o[2], last), STREAM_PORT));
+                let addr = SocketAddr::from((Ipv4Addr::new(net[0], net[1], net[2], last), STREAM_PORT));
                 let mut s = TcpStream::connect_timeout(&addr, Duration::from_millis(600)).ok()?;
                 let _ = s.set_read_timeout(Some(Duration::from_millis(600)));
                 s.write_all(b"GET /info HTTP/1.0\r\n\r\n").ok()?;
@@ -103,11 +112,41 @@ fn parse_info(http: &str) -> Option<(String, u16)> {
     parse_reply(body.trim().as_bytes())
 }
 
-fn local_ipv4() -> Option<Ipv4Addr> {
+fn usable(ip: Ipv4Addr) -> bool {
+    !ip.is_loopback() && !ip.is_link_local() && !ip.is_unspecified() && !ip.is_broadcast()
+}
+
+/// Every /24 this machine has an address on, the default route first, deduped.
+fn subnets() -> Vec<[u8; 3]> {
+    let mut out: Vec<[u8; 3]> = Vec::new();
+    let mut add = |ip: Ipv4Addr| {
+        let o = ip.octets();
+        let net = [o[0], o[1], o[2]];
+        if !out.contains(&net) {
+            out.push(net);
+        }
+    };
+    if let Some(ip) = route_ipv4() {
+        add(ip);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        for (_, ip) in local_ip_address::list_afinet_netifas().unwrap_or_default() {
+            if let std::net::IpAddr::V4(v4) = ip {
+                if usable(v4) {
+                    add(v4);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn route_ipv4() -> Option<Ipv4Addr> {
     let s = UdpSocket::bind(("0.0.0.0", 0)).ok()?;
     s.connect(("192.0.2.1", 9)).ok()?; // nothing is sent; this only selects the route
     match s.local_addr().ok()?.ip() {
-        std::net::IpAddr::V4(v4) if !v4.is_loopback() => Some(v4),
+        std::net::IpAddr::V4(v4) if usable(v4) => Some(v4),
         _ => None,
     }
 }
