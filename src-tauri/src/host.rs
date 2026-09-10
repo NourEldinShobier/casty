@@ -40,6 +40,7 @@ pub struct Viewer {
 #[derive(Clone, Default)]
 pub struct Shared {
     pub viewers: Arc<Mutex<Vec<Viewer>>>,
+    pub input: Arc<crate::input::Injector>,
     /// Set when a listening port could not be opened, so the UI can say so instead of looking healthy.
     pub net_error: Arc<Mutex<Option<String>>>,
     pub sessions: Arc<Mutex<HashMap<u64, Arc<Ctl>>>>,
@@ -116,6 +117,8 @@ pub async fn serve(shared: Shared) {
                             "displays": d, "display": cur,
                             "viewers": s.viewers.lock().unwrap().len(),
                             "audio": s.settings.read().unwrap().audio,
+                            "control": s.settings.read().unwrap().allow_control && crate::input::ready(),
+                            "control_hint": control_hint(s.settings.read().unwrap().allow_control),
                         })),
                     )
                 }
@@ -140,6 +143,17 @@ pub async fn serve(shared: Shared) {
     }
 }
 
+/// Why the other machine cannot be driven, phrased for whoever is sitting at the viewer.
+fn control_hint(allowed: bool) -> Option<String> {
+    if !allowed {
+        Some("Remote control is switched off there. Turn it on under Settings, General.".into())
+    } else if !crate::input::ready() {
+        Some("That Mac needs Accessibility access before it can be controlled. Open Casty there and grant it.".into())
+    } else {
+        None
+    }
+}
+
 #[derive(Deserialize)]
 pub struct Sid {
     sid: u64,
@@ -154,7 +168,13 @@ const CORS: [(&str, &str); 3] = [
 async fn ctl(Query(Sid { sid }): Query<Sid>, State(s): State<Shared>, body: String) -> impl IntoResponse {
     let c = s.sessions.lock().unwrap().get(&sid).cloned();
     if let Some(c) = c {
-        control(body.trim(), &c, &s);
+        // The viewer batches a frame's worth of input into one request, one command per line.
+        for line in body.lines() {
+            let line = line.trim();
+            if !line.is_empty() {
+                control(line, &c, &s);
+            }
+        }
     }
     (CORS, "ok")
 }
@@ -164,6 +184,10 @@ pub struct Ctl {
     want_key: AtomicBool,
     paused: AtomicBool,
     audio: AtomicBool,
+    /// This viewer may drive the mouse and keyboard. Off until it asks and the host allows it.
+    control: AtomicBool,
+    /// Input is mapped against the primary display only, so a session on any other one cannot control.
+    display: usize,
 }
 
 async fn stream(Query(q): Query<Quality>, State(s): State<Shared>) -> impl IntoResponse {
@@ -186,6 +210,8 @@ async fn stream(Query(q): Query<Quality>, State(s): State<Shared>) -> impl IntoR
         want_key: AtomicBool::new(true),
         paused: AtomicBool::new(false),
         audio: AtomicBool::new(q.audio != 0 && settings.audio),
+        control: AtomicBool::new(false),
+        display: q.display.unwrap_or(settings.display),
     });
     s.sessions.lock().unwrap().insert(id, ctl.clone());
     {
@@ -214,6 +240,9 @@ async fn stream(Query(q): Query<Quality>, State(s): State<Shared>) -> impl IntoR
             }
         }
         ctl.stop.store(true, Relaxed);
+        if ctl.control.swap(false, Relaxed) {
+            shared.input.send("rel"); // a dropped viewer must not leave a key held down
+        }
         shared.sessions.lock().unwrap().remove(&id);
         shared.viewers.lock().unwrap().retain(|v| v.id != id);
         if shared.viewers.lock().unwrap().is_empty() {
@@ -229,8 +258,25 @@ async fn stream(Query(q): Query<Quality>, State(s): State<Shared>) -> impl IntoR
 }
 
 fn control(t: &str, ctl: &Ctl, s: &Shared) {
+    // Input arrives far more often than anything else and is space separated, so match it first.
+    if matches!(t.split(' ').next(), Some("m" | "d" | "u" | "s" | "kd" | "ku" | "t" | "rel")) {
+        if ctl.control.load(Relaxed) {
+            s.input.send(t);
+        }
+        return;
+    }
     let (k, v) = t.split_once(':').unwrap_or((t, ""));
     match k {
+        "ctrl" => {
+            let allowed = v == "1"
+                && s.settings.read().unwrap().allow_control
+                && ctl.display == 0
+                && crate::input::ready();
+            if !allowed {
+                s.input.send("rel");
+            }
+            ctl.control.store(allowed, Relaxed);
+        }
         "kf" => ctl.want_key.store(true, Relaxed),
         "audio" => ctl.audio.store(v == "1" && s.settings.read().unwrap().audio, Relaxed),
         "pause" => {

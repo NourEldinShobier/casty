@@ -38,6 +38,8 @@
   .kbd{display:inline-flex;gap:4px}.kbd span{border:1px solid hsl(var(--border));border-bottom-width:2px;border-radius:8px;padding:2px 8px;font-size:11px;background:hsl(var(--muted))}
   .note{font-size:12px;color:hsl(var(--muted-foreground));padding:10px 16px;background:hsl(var(--muted)/.6);border-top:1px solid hsl(var(--border));display:flex;gap:8px;align-items:flex-start}
   .note .ic{width:14px;height:14px;margin-top:1px;flex:none}
+  .note[hidden]{display:none} /* an author display rule outranks the UA [hidden] rule, so restate it */
+  .note .btn{flex:none;margin-left:auto}
   .about{font-size:13px;line-height:1.7}.about .mono{color:hsl(var(--muted-foreground))}
   .about .row{display:flex;gap:12px;align-items:center}
   .about .logo{width:44px;height:44px;border-radius:14px;background:hsl(var(--primary));color:hsl(var(--primary-foreground));display:grid;place-items:center;flex:none}
@@ -72,6 +74,8 @@
         </div>
         <div class="grp"><div class="gh">Being watched</div>
           <div class="srow"><div class="l"><b>Allow viewers</b><span>Other devices can find and watch this screen.</span></div><button class="sw" role="switch" data-k="allow_viewers"></button></div>
+          <div class="srow"><div class="l"><b>Allow remote control</b><span>A viewer can drive this mouse and keyboard. Watching is passive, this is not.</span></div><button class="sw" role="switch" data-k="allow_control"></button></div>
+          <div class="note" id="axnote" hidden><span class="nic"></span><span>macOS needs Accessibility access before a viewer can move this pointer. Grant Casty under Privacy &amp; Security, Accessibility.</span><button class="btn default sm" id="axgrant">Open Settings</button></div>
         </div>
       </section>
       <section data-s="video">
@@ -111,6 +115,7 @@
           <div class="srow"><div class="l"><b>Mute or unmute</b></div><span class="kbd"><span>M</span></span></div>
           <div class="srow"><div class="l"><b>Back, or leave expanded</b></div><span class="kbd"><span>Esc</span></span></div>
           <div class="srow"><div class="l"><b>Expand</b><span>Also works with the mouse.</span></div><span>Double-click the video</span></div>
+          <div class="srow"><div class="l"><b>Give back control</b><span>The one combination kept local while you drive the other machine.</span></div><span class="kbd"><span>Ctrl</span><span>Shift</span><span>Alt</span><span>C</span></span></div>
         </div>
       </section>
       <section data-s="about">
@@ -155,6 +160,8 @@ document.querySelectorAll('[data-k]').forEach((el) => {
   document.body.dataset.os = h.os;
   $('#displays').innerHTML = h.displays.map((d, i) => `<option value="${d.index}">${d.name || 'Display ' + (i + 1)}${d.width ? ` · ${d.width}×${d.height}` : ''}</option>`).join('') || '<option value="0">Display 1</option>';
   $('#hname').textContent = h.name; $('#ips').innerHTML = h.ips.join('<br>') || 'no network';
+  $('#axnote').hidden = h.os !== 'macos' || h.input_ready;
+  $('#axgrant').onclick = () => invoke('request_input_permission');
   render();
 })();
 </script>

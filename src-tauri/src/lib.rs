@@ -6,6 +6,8 @@ mod capture;
 #[cfg(not(target_os = "android"))]
 mod host;
 #[cfg(not(target_os = "android"))]
+mod input;
+#[cfg(not(target_os = "android"))]
 mod settings;
 #[cfg(not(target_os = "android"))]
 mod sysaudio;
@@ -44,6 +46,8 @@ mod desktop {
         os: &'static str,
         displays: Vec<capture::DisplayInfo>,
         net_error: Option<String>,
+        allow_control: bool,
+        input_ready: bool,
     }
 
     #[tauri::command]
@@ -59,12 +63,20 @@ mod desktop {
             os: std::env::consts::OS,
             displays: capture::displays(),
             net_error: s.net_error.lock().unwrap().clone(),
+            allow_control: s.settings.read().unwrap().allow_control,
+            input_ready: input::ready(),
         }
     }
 
     #[tauri::command]
     pub fn request_permission() -> bool {
         capture::request_permission()
+    }
+
+    /// Opens the macOS Accessibility pane; nothing else can grant permission to move the mouse.
+    #[tauri::command]
+    pub fn request_input_permission() {
+        input::request()
     }
 
     /// macOS hands screen-recording access to a newly launched process, not a running one.
@@ -125,6 +137,7 @@ pub fn run() {
             discover,
             host_info,
             request_permission,
+            request_input_permission,
             relaunch,
             set_route,
             set_volume,

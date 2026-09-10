@@ -18,6 +18,9 @@ pub struct Settings {
     pub audio: bool,
     /// Accept viewers at all.
     pub allow_viewers: bool,
+    /// Let a viewer drive this machine's mouse and keyboard. Off until asked for: watching is
+    /// passive, control is not, and everyone on the network can already find this host.
+    pub allow_control: bool,
     /// "system" | "light" | "dark"
     pub theme: String,
 }
@@ -34,6 +37,7 @@ impl Default for Settings {
             hide_controls_ms: 2000,
             audio: true,
             allow_viewers: true,
+            allow_control: false,
             theme: "system".into(),
         }
     }
@@ -44,10 +48,18 @@ fn path() -> Option<PathBuf> {
 }
 
 pub fn load() -> Settings {
-    path()
-        .and_then(|p| std::fs::read(p).ok())
-        .and_then(|b| serde_json::from_slice(&b).ok())
-        .unwrap_or_default()
+    let Some(p) = path() else { return Settings::default() };
+    let Ok(bytes) = std::fs::read(&p) else { return Settings::default() };
+    // An editor may have left a UTF-8 BOM; serde would reject the whole file over it.
+    let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(&bytes);
+    match serde_json::from_slice(bytes) {
+        Ok(s) => s,
+        Err(e) => {
+            // Falling back silently would quietly undo every setting the user chose.
+            eprintln!("casty: {} is not valid JSON ({e}); using defaults", p.display());
+            Settings::default()
+        }
+    }
 }
 
 pub fn save(s: &Settings) -> Result<(), String> {

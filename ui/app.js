@@ -39,7 +39,7 @@ $('#grant').onclick = async () => {
 setIcon('#settings2,#settings3', 'settings');
 setIcon('#wc-min,#wc-min2', 'minus'); setIcon('#wc-max', 'square'); setIcon('#wc-close,#wc-close2', 'x');
 setIcon('#pause', 'pause'); setIcon('#hvolic', 'volume-2'); setIcon('#mute', 'volume-2');
-setIcon('#pin', 'pin'); setIcon('#expand', 'expand'); setIcon('#back', 'log-out');
+setIcon('#pin', 'pin'); setIcon('#expand', 'expand'); setIcon('#back', 'log-out'); setIcon('#ctrlbtn', 'mouse-pointer-2');
 const ROUTES = [{ icon: 'monitor-speaker', tip: 'Sound plays on the PC' }, { icon: 'headphones', tip: 'Sound plays here, PC muted' }, { icon: 'audio-lines', tip: 'Sound plays on both' }];
 function drawRoute() { const r = ROUTES[route]; $('#routebtn').innerHTML = icon(r.icon); $('#routebtn').dataset.tip = r.tip + ' \u00b7 click to change'; }
 $('#stopcast').innerHTML = icon('circle-stop') + ' Stop';
@@ -110,7 +110,10 @@ function showControls() {
   clearTimeout(hideT);
   if (!$('#qmenu').classList.contains('open')) hideT = setTimeout(() => body.classList.remove('controls'), settings.hide_controls_ms || 2000);
 }
-document.addEventListener('mousemove', showControls);
+document.addEventListener('mousemove', (e) => {
+  if (controlling && e.clientY > 72 && e.clientY < innerHeight - 96) return;
+  showControls();
+});
 document.addEventListener('mouseleave', () => { clearTimeout(hideT); if (!$('#qmenu').classList.contains('open')) body.classList.remove('controls'); });
 document.querySelector('.bar').addEventListener('mouseenter', () => clearTimeout(hideT));
 
@@ -211,6 +214,103 @@ function playAudio(buf) {
 }
 function send(t) { if (ws?.open && ws.sid) fetch(`${ws.base}/ctl?sid=${ws.sid}`, { method: 'POST', body: t }).catch(() => {}); }
 
+// ---------- remote control ----------
+// Input is queued and flushed once per frame in one request. Consecutive moves collapse into the
+// newest one, so a fast gesture costs a single line, while clicks and keys keep their order.
+let controlling = false;
+const inputQ = [];
+let flushing = 0;
+
+function flushInput() {
+  flushing = 0;
+  if (!inputQ.length) return;
+  send(inputQ.join('\n'));
+  inputQ.length = 0;
+}
+function queue(cmd) {
+  if (!controlling) return;
+  inputQ.push(cmd);
+  if (!flushing) flushing = requestAnimationFrame(flushInput);
+}
+function queueMove(x, y) {
+  if (!controlling) return;
+  const cmd = `m ${x.toFixed(4)} ${y.toFixed(4)}`;
+  const last = inputQ[inputQ.length - 1];
+  if (last && last.startsWith('m ')) inputQ[inputQ.length - 1] = cmd;
+  else inputQ.push(cmd);
+  if (!flushing) flushing = requestAnimationFrame(flushInput);
+}
+
+// The canvas is letterboxed by object-fit: contain, so the video rect is not the element rect.
+function norm(ev) {
+  if (!canvas.width || !canvas.height) return null;
+  const r = canvas.getBoundingClientRect();
+  const scale = Math.min(r.width / canvas.width, r.height / canvas.height);
+  const dw = canvas.width * scale, dh = canvas.height * scale;
+  const x = (ev.clientX - (r.left + (r.width - dw) / 2)) / dw;
+  const y = (ev.clientY - (r.top + (r.height - dh) / 2)) / dh;
+  return x >= 0 && x <= 1 && y >= 0 && y <= 1 ? [x, y] : null;
+}
+
+function setControl(on) {
+  if (on) {
+    if ($('#ctrlbtn').getAttribute('aria-disabled') === 'true') {
+      return fail(remote?.info?.control_hint || 'That machine does not allow remote control.');
+    }
+    if ((display ?? remote?.info?.display ?? 0) !== 0) {
+      return fail('Only the primary display can be controlled.');
+    }
+  }
+  controlling = on;
+  body.classList.toggle('controlling', on);
+  $('#ctrlbtn').setAttribute('aria-pressed', on);
+  $('#ctrlbtn').dataset.tip = on ? 'Give back control \u00b7 Ctrl+Alt+Shift+C' : 'Take control';
+  if (on) send('ctrl:1');
+  else { flushInput(); send('rel\nctrl:0'); } // one request, so the host sees them in order
+}
+$('#ctrlbtn').onclick = () => setControl(!controlling);
+
+canvas.addEventListener('pointermove', (ev) => {
+  const p = controlling && norm(ev);
+  if (p) queueMove(p[0], p[1]);
+});
+canvas.addEventListener('pointerdown', (ev) => {
+  const p = controlling && norm(ev);
+  if (!p) return;
+  ev.preventDefault();
+  queueMove(p[0], p[1]);
+  queue(`d ${ev.button}`);
+});
+addEventListener('pointerup', (ev) => { if (controlling) queue(`u ${ev.button}`); });
+canvas.addEventListener('contextmenu', (ev) => { if (controlling) ev.preventDefault(); });
+canvas.addEventListener('wheel', (ev) => {
+  if (!controlling) return;
+  ev.preventDefault();
+  // deltaMode 0 is pixels, 1 lines, 2 pages; the host scrolls in lines
+  const f = ev.deltaMode === 1 ? 1 : ev.deltaMode === 2 ? 10 : 1 / 100;
+  const dx = Math.round(ev.deltaX * f) || Math.sign(ev.deltaX);
+  const dy = Math.round(ev.deltaY * f) || Math.sign(ev.deltaY);
+  if (dx || dy) queue(`s ${dx} ${dy}`);
+}, { passive: false });
+
+// Capture phase, so the app's own shortcuts never eat a key meant for the remote machine.
+// One combination stays local, otherwise there is no way back out of a captured keyboard.
+addEventListener('keydown', (ev) => {
+  if (!controlling) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  if (ev.ctrlKey && ev.altKey && ev.shiftKey && ev.code === 'KeyC') return setControl(false);
+  queue(`kd ${ev.code}`);
+}, true);
+addEventListener('keyup', (ev) => {
+  if (!controlling) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  queue(`ku ${ev.code}`);
+}, true);
+// A window that loses focus mid-drag would otherwise leave keys held down on the host.
+addEventListener('blur', () => { if (controlling) { flushInput(); send('rel'); } });
+
 async function connect(ip, port, name) {
   stop(false);
   remote = { ip, port, name };
@@ -218,7 +318,10 @@ async function connect(ip, port, name) {
   try { const r = await fetch(`http://${ip}:${port}/info`, { signal: AbortSignal.timeout(2500) }); remote.info = await r.json(); remote.name = remote.info.name; }
   catch { $('#err').textContent = `Cannot reach ${ip}. Is Casty running there and local network sharing on?`; $('#err').classList.add('on'); return; }
   const q = PRESETS.find((p) => p.key === preset);
-  $('#title').textContent = remote.name; $('#qlabel').textContent = `${q.name} \u00b7 ${q.fps} fps`; $('#qname').textContent = q.name;
+  $('#title').textContent = remote.name; $('#qname').textContent = q.name;
+  const canCtl = !!remote.info.control;
+  $('#ctrlbtn').setAttribute('aria-disabled', !canCtl);
+  $('#ctrlbtn').dataset.tip = canCtl ? 'Take control' : (remote.info.control_hint || 'Remote control is off there');
   await setState('viewing'); showControls();
   if (!('VideoDecoder' in window)) { setStats('WebCodecs not supported here'); return; }
   log('decoder setup, VideoDecoder=' + ('VideoDecoder' in window));
@@ -279,13 +382,14 @@ async function connect(ip, port, name) {
 }
 function setStats(t) { $('#stats').textContent = t; }
 function stop(toIdle = true) {
+  if (controlling) setControl(false);
   clearInterval(stats.t); cancelAnimationFrame(raf);
   const w = ws; ws = null; w?.abort.abort();
   try { dec?.close(); } catch {} dec = null;
   stats.lastFrame?.close(); stats.lastFrame = null;
   nextT = 0; paused = false; $('#pause').setAttribute('aria-pressed', 'false'); $('#pause').innerHTML = icon('pause');
   $('#qmenu').classList.remove('open');
-  if (toIdle) { remote = null; $('#title').textContent = 'Casty'; $('#qlabel').textContent = ''; setState('idle'); scan(); }
+  if (toIdle) { remote = null; $('#title').textContent = 'Casty'; setState('idle'); scan(); }
 }
 $('#back').onclick = () => stop(true);
 $('#pause').onclick = () => {
